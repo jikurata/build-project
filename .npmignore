@@ -1,0 +1,3 @@
+.gitignore
+__test__/
+jest-config.json

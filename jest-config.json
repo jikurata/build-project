@@ -1,0 +1,6 @@
+{
+  "testEnvironment": "node",
+  "verbose": true,
+  "bail": true,
+  "testPathIgnorePatterns": ["<rootDir>/node_modules/", "<rootDir>/.git"]
+}

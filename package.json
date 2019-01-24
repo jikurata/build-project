@@ -1,0 +1,15 @@
+{
+  "name": "@jikurata/build-project",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --config jest-config.json"
+  },
+  "keywords": [],
+  "author": "jikurata",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^23.6.0"
+  }
+}
