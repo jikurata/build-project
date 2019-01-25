@@ -8,25 +8,5 @@ describe('Project Builder functional tests', () => {
       builder.use((curr, next) => {});
       expect(builder.middleware.length).toBe(1);
     });
-    test('Calling next(false) will end the middleware chain execution', () => {
-      const builder = new ProjectBuilder();
-      let val = 0;
-      builder.use((curr, next) => {
-        val = 1;
-      });
-      builder.use((curr, next) => {
-        val = 2;
-        next();
-      });
-      builder.use((curr, next) => {
-        val = 3;
-        next(false);
-      });
-      builder.use((curr, next) => {
-        val = 4;
-      });
-      builder.build();
-      expect(val).toEqual(3);
-    });
   });
 });
