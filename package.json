@@ -1,12 +1,16 @@
 {
   "name": "@jikurata/build-project",
   "version": "0.0.0",
-  "description": "",
+  "description": "Build a project using your preferred tools as middleware",
   "main": "index.js",
   "scripts": {
     "test": "jest --config jest-config.json"
   },
-  "keywords": [],
+  "keywords": [
+    "es6",
+    "build",
+    "project"
+  ],
   "author": "jikurata",
   "license": "ISC",
   "devDependencies": {
