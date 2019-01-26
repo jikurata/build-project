@@ -24,7 +24,7 @@ builder.use((curr, next) => {
     });
 });
 
-// Executes the build process
+// Executes the build process, returns a Promise
 builder.build();
 ```
 Deconstructing a middleware operation
