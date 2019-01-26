@@ -38,6 +38,8 @@ const middleware = (curr, next) => {
         - *path*: Contains the full root-relative path of the current file
         - *name*: Contains the file's base name
         - *type*: Contains the file's extension
+        - *isFile*: *Boolean*, if the path property resolves to a file
+- **next**: is a callback function to command the executor to proceed to the next middleware operation in the chain. By default, if an operator reaches the end of its code block, it will proceed to the next operation.
 
 ## Example
 Project structure:
