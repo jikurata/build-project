@@ -14,6 +14,14 @@ const browserify = require('browserify');
 
 const builder = new ProjectBuilder('dist', 'src');
 
+builder.use((curr, next) => {
+    if ( curr.filetype !== 'html' ) return next();
+    // Ensure build path exists
+    const dir = curr.dest.replace(`${curr.name}.${curr.type}`, '');
+    if ( !ProjectBuilder.pathExists(dir) ) fs.mkdirSync(dir);
+    fs.copyFileSync(curr.path, curr.dest);
+});
+
 // Adds browserify as middleware
 builder.use((curr, next) => {
     if ( curr.filetype !== 'js' ) return next();
@@ -30,6 +38,15 @@ builder.use((curr, next) => {
 // Executes the build process, returns a Promise
 builder.build();
 ```
+**Constructor**
+```
+    /**
+      * dest - The root directory for the build
+      * src - A single path, or an array of paths for ProjectBuilder to search before building
+      * @param {String} dest
+      * @param {String|String[]} src
+    new ProjectBuilder(dest, src);
+```
 **Deconstructing a middleware operation**
 ```
 const middleware = (curr, next) => {
@@ -42,9 +59,11 @@ const middleware = (curr, next) => {
         - *name*: Contains the file's base name
         - *type*: Contains the file's extension
         - *isFile*: *Boolean*, if the path property resolves to a file
-- **next**: is a callback function to command the executor to proceed to the next middleware operation in the chain. By default, if an operator reaches the end of its code block, it will proceed to the next operation.
+- **next**: is a callback function to command the executor to proceed to the next middleware operation in the chain. By default, if an operator reaches the end of its code block, it will proceed to the next operation. Furthermore, passing a falsy value as an argument to next() will terminate middleware execution for the current path object.
+
 **Dealing with asynchronous middleware**
-It is recommended to return a Promise from your middleware
+It is recommended to return a Promise from your middleware to keep ProjectBuilder's execution synchronous, not doing so will disrupt the flow of console logging, not much else.
+
 ## Example
 Project structure:
 - src/index.html
