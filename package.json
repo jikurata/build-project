@@ -1,6 +1,6 @@
 {
   "name": "@jikurata/build-project",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Build a project using your preferred tools as middleware",
   "main": "index.js",
   "scripts": {
@@ -17,6 +17,7 @@
     "jest": "^23.6.0"
   },
   "dependencies": {
-    "@jikurata/logger": "0.0.1"
+    "@jikurata/logger": "0.0.1",
+    "fs-extra": "^7.0.1"
   }
 }
