@@ -5,7 +5,7 @@ const Logger = require('@jikurata/logger');
 Logger.printMessage = false;
 
 describe('Project Builder functional tests', () => {
-  describe('use adds a build handler to builder\'s middleware', () => {
+  describe('use() adds a build handler to builder\'s middleware', () => {
     test('middleware\'s length is 1', () => {
       const builder = new ProjectBuilder();
       builder.use((curr, next) => {});
@@ -73,17 +73,17 @@ describe('Project Builder functional tests', () => {
     });
   });
   describe('Builds src files to dest', () => {
-    test('Expect build location to have two files', (done) => {
+    test('Expect build location to have three files', (done) => {
       const builder = new ProjectBuilder('__test__/example/dist', '__test__/example/src');
       builder.use((curr, next) => {
-        if ( curr.type === 'html' || curr.type === 'js' ) {
-          fs.copyFileSync(curr.path, curr.dest);
-        }
+        const dir = curr.dest.replace(`${curr.name}.${curr.type}`, '');
+        if ( !ProjectBuilder.pathExists(dir) ) fs.mkdirSync(dir);
+        fs.copyFileSync(curr.path, curr.dest);
         return next();
       });
       builder.build()
       .then(() => {
-        expect(fs.readdirSync('__test__/example/dist').length).toEqual(2)
+        expect(fs.readdirSync('__test__/example/dist').length).toEqual(3)
         done();
       })
       .catch(err => console.error(err));
