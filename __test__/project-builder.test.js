@@ -1,4 +1,5 @@
 'use strict';
+const fs = require('fs');
 const ProjectBuilder = require('../lib/ProjectBuilder.js');
 const Logger = require('@jikurata/logger');
 Logger.printMessage = false;
