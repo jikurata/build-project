@@ -17,17 +17,20 @@ const builder = new ProjectBuilder('dist', 'src');
 // Adds browserify as middleware
 builder.use((curr, next) => {
     if ( curr.filetype !== 'js' ) return next();
-    let b = browserify(curr.path);
-    b.bundle((err, buffer) => {
-        if ( err ) return console.error(err);
-        fs.writeFileSync(buffer, curr.dest);
+    return new Promise((resolve, reject) => {
+        let b = browserify(curr.path);
+        b.bundle((err, buffer) => {
+            if ( err ) return console.error(err);
+            fs.writeFileSync(buffer, curr.dest);
+            resolve();
+        });
     });
 });
 
 // Executes the build process, returns a Promise
 builder.build();
 ```
-Deconstructing a middleware operation
+**Deconstructing a middleware operation**
 ```
 const middleware = (curr, next) => {
     // Do things
@@ -40,7 +43,8 @@ const middleware = (curr, next) => {
         - *type*: Contains the file's extension
         - *isFile*: *Boolean*, if the path property resolves to a file
 - **next**: is a callback function to command the executor to proceed to the next middleware operation in the chain. By default, if an operator reaches the end of its code block, it will proceed to the next operation.
-
+**Dealing with asynchronous middleware**
+It is recommended to return a Promise from your middleware
 ## Example
 Project structure:
 - src/index.html
@@ -99,3 +103,7 @@ builder.build();
 - dist/asset/css/style.css
 - dist/asset/script/main.bundle.js
 ```
+## Version Log
+---
+**v0.0.1**
+- Fixed a bug that prevented ProjectBuilder from removing subdirectories.
