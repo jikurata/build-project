@@ -127,8 +127,10 @@ builder.build();
 ---
 **v0.0.3**
 - Fixed readme typos<br>
+
 **v0.0.2**
-- Add fs-extra as a dependencyl<br>
+- Add fs-extra as a dependency<br>
+
 **v0.0.1**
 - Fixed a bug that prevented ProjectBuilder from removing subdirectories.
 - Passing a falsy value to the middleware next() callback will terminate the middleware execution chain for the current path object.
