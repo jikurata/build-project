@@ -1,8 +1,9 @@
 {
   "name": "@jikurata/build-project",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Build a project using your preferred tools as middleware",
   "main": "index.js",
+  "repository": "https://github.com/jikurata/build-project",
   "scripts": {
     "test": "jest --config jest-config.json"
   },

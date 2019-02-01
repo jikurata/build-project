@@ -1,4 +1,4 @@
-# build-project v0.0.1
+# build-project v0.0.3
 Use your preferred build tools to build your project
 ---
 ## Install
@@ -15,7 +15,7 @@ const browserify = require('browserify');
 const builder = new ProjectBuilder('dist', 'src');
 
 builder.use((curr, next) => {
-    if ( curr.filetype !== 'html' ) return next();
+    if ( curr.type !== 'html' ) return next();
     // Ensure build path exists
     const dir = curr.dest.replace(`${curr.name}.${curr.type}`, '');
     if ( !ProjectBuilder.pathExists(dir) ) fs.mkdirSync(dir);
@@ -24,7 +24,7 @@ builder.use((curr, next) => {
 
 // Adds browserify as middleware
 builder.use((curr, next) => {
-    if ( curr.filetype !== 'js' ) return next();
+    if ( curr.type !== 'js' ) return next();
     return new Promise((resolve, reject) => {
         let b = browserify(curr.path);
         b.bundle((err, buffer) => {
@@ -56,6 +56,7 @@ const middleware = (curr, next) => {
 - **curr**: is an object containing basic information about the current file being processed.
     - Properties:
         - *path*: Contains the full root-relative path of the current file
+        - *dest*: Contains the build path
         - *name*: Contains the file's base name
         - *type*: Contains the file's extension
         - *isFile*: *Boolean*, if the path property resolves to a file
@@ -124,8 +125,10 @@ builder.build();
 ```
 ## Version Log
 ---
+**v0.0.3**
+- Fixed readme typos<br>
 **v0.0.2**
-- Add fs-extra as a dependency
+- Add fs-extra as a dependencyl<br>
 **v0.0.1**
 - Fixed a bug that prevented ProjectBuilder from removing subdirectories.
 - Passing a falsy value to the middleware next() callback will terminate the middleware execution chain for the current path object.
