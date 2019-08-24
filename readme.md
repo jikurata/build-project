@@ -1,4 +1,4 @@
-# build-project v0.0.3
+# build-project v0.0.4
 Use your preferred build tools to build your project
 ---
 ## Install
@@ -125,11 +125,15 @@ builder.build();
 ```
 ## Version Log
 ---
+**v0.0.4**
+- Builder now resolves \ to / when constructing build paths
+- Refactor Jest tests to Taste tests
+
 **v0.0.3**
-- Fixed readme typos<br>
+- Fixed readme typos
 
 **v0.0.2**
-- Add fs-extra as a dependency<br>
+- Add fs-extra as a dependency
 
 **v0.0.1**
 - Fixed a bug that prevented ProjectBuilder from removing subdirectories.
