@@ -1,4 +1,4 @@
-# build-project v0.0.5
+# build-project v0.0.6
 Use your preferred build tools to build your project
 ---
 ## Install
@@ -125,6 +125,9 @@ builder.build();
 ```
 ## Version Log
 ---
+**v0.0.6**
+- filepaths are resolved at the validation phase
+
 **v0.0.5**
 - Refactor console logging to only print results instead of individual files
 
