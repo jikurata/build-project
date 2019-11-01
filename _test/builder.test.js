@@ -1,19 +1,19 @@
 'use strict';
-const fs = require('fs');
 const Taste = require('@jikurata/taste');
-const ProjectBuilder = require('../lib/ProjectBuilder.js');
-const Logger = require('@jikurata/logger');
-Logger.printMessage = false;
+const fs = require('fs-extra');
+const ProjectBuilder = require('../src/ProjectBuilder.js');
 
+const test = new Promise((resolve, reject) => {
+  Taste.flavor('Add middleware to the builder')
+  .test(profile => {
+    const builder = new ProjectBuilder();
+    builder.use((file, next) => {});
+    profile.middlewares = builder.middlewares.length;
+  })
+  .expect('middlewares').toEqual(1);
+});
 
-Taste.flavor('Adding middleware to the builder')
-.describe('use() adds the passed function as middleware')
-.test(() => {
-  const builder = new ProjectBuilder();
-  builder.use((curr, next) => {});
-  Taste.profile.middlewareCount = builder.middleware.length;
-})
-.expect('middlewareCount').toBe(1);
+module.exports = test;
 
 Taste.flavor('Path resolution')
 .describe('Builder resolves relative paths')

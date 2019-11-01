@@ -1,6 +1,7 @@
 'use strict';
 const Path = require('path');
 const fsUtil = require('./fs-util.js');
+const pathUtil = require('./path-util.js');
 const BuildError = require('./BuildError.js');
 const execute = Symbol('execute');
 const searchSources = Symbol('searchSources');
@@ -36,11 +37,11 @@ class ProjectBuilder extends EventEmitter {
   
   /**
    * Create a new Build
-   * @param {String} buildPath 
+   * @param {String} buildRoot 
    * @param {String|Array[String]} sources
    * @returns {Promise:Build}
    */
-  build(buildPath, sources) {
+  build(buildRoot, sources) {
     // Iterate through eaech file in the queue
     const fileIterator = (queue) => {
       return new Promise((resolve, reject) => {
@@ -48,7 +49,7 @@ class ProjectBuilder extends EventEmitter {
         if ( filepath ) {
           const currentFile = Path.normalize(filepath);
           const fileInfo = Path.format(currentFile);
-          fileInfo.buildPath = this.buildPath(buildRootPath, currentFile);
+          fileInfo.buildPath = pathUtil.resolveBuildPath(buildRoot, currentFile);
 
           this[execute](fileInfo, this.middlewares)
           .then(() => {
@@ -77,7 +78,7 @@ class ProjectBuilder extends EventEmitter {
       .then(queue => {
         build = new Build({
           root: this.root,
-          buildPath: buildPath,
+          buildRoot: buildRoot,
           sources: sources,
           queue: queue
         });
@@ -211,47 +212,6 @@ class ProjectBuilder extends EventEmitter {
         reject(err);
       }
     });
-  }
-
-  /**
-   * Compares two absolute paths and returns the common path starting from its root
-   * @param {String} p1 
-   * @param {String} p2
-   * @returns {String}
-   */
-  findCommonRootPath(p1, p2) {
-    const path1 = Path.normalize(p1).split(Path.sep);
-    const path2 = Path.normalize(p2).split(Path.sep);
-    const common = []
-
-    // Iterate through the shorter path
-    const itr = (path1.length >= path2.legnth) ? path1.length : path2.length;
-    for ( let i = 0; i < itr; ++i ) {
-      if ( path1[i] === path2[i] ) {
-        common.push(path1[i]);
-      }
-      else {
-        break;
-      }
-    }
-    return common.join(Path.sep);
-  }
-
-  /**
-   * Formats a build path that mirrors the src
-   * @param {String} buildRootPath 
-   * @param {String} path
-   * @returns {String}
-   */
-  buildPath(buildRootPath, path) {
-    buildRootPath = Path.normalize(buildRootPath);
-    path = Path.normalize(path);
-    // Check if the buildRoot has a common root with path
-    const common = this.findCommonRootPath(path, buildRootPath);
-    if ( common ) {
-      path = path.replace(common, '');
-    }
-    return Path.join(buildRootPath, path);
   }
 }
 
