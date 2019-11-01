@@ -1,2 +1,2 @@
 'use strict';
-module.exports = require('./lib/ProjectBuilder.js');
+module.exports = require('./src/ProjectBuilder.js');
