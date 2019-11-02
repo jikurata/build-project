@@ -13,17 +13,17 @@ class PathDoesNotExist extends Error {
   }
 }
 
-class InvalidListener extends TypeError {
+class InvalidHandler extends TypeError {
   constructor(arg) {
     super(`Invalid Listener: Expected a function, but received typeof ${arg}.`);
   }
 
   static throwCheck(arg) {
     if ( typeof arg !== 'function' ) {
-      throw new InvalidListener(arg);
+      throw new InvalidHandler(arg);
     }
   }
 }
 
 module.exports.PathDoesNotExist = PathDoesNotExist
-module.exports.InvalidListener = InvalidListener;
+module.exports.InvalidHandler = InvalidHandler;

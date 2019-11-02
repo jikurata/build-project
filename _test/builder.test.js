@@ -4,71 +4,111 @@ const fs = require('fs-extra');
 const ProjectBuilder = require('../src/ProjectBuilder.js');
 
 const test = new Promise((resolve, reject) => {
-  Taste.flavor('Add middleware to the builder')
+  Taste.flavor('Add handler to the builder')
   .test(profile => {
     const builder = new ProjectBuilder();
     builder.use((file, next) => {});
-    profile.middlewares = builder.middlewares.length;
+    profile.handlers = builder.handlers.length;
+    resolve();
   })
-  .expect('middlewares').toEqual(1);
-});
+  .expect('handlers').toEqual(1);
+})
+.then(() => new Promise((resolve, reject) => {
+  Taste.flavor('Build Events')
+  .test(profile => {
+    const builder = new ProjectBuilder();
+    builder.use((file, next) => {});
+    builder.on('search-start', (file) => {
+      profile.searchStart = true;
+    });
+    builder.on('search-complete', (file) => {
+      profile.searchComplete = true;
+    });
+    builder.on('file-start', (file) => {
+      profile.fileStart = true;
+    });
+    builder.on('file-complete', (file) => {
+      profile.fileComplete = true;
+    });
+    builder.on('build-start', (file) => {
+      profile.buildStart = true;
+    });
+    builder.on('build-complete', (file) => {
+      profile.buildComplete = true;
+    });
+    builder.build(['_test/example/src/index.html'])
+    .then(() => resolve());
+  })
+  .expect('searchStart').toBeTruthy()
+  .expect('searchComplete').toBeTruthy()
+  .expect('fileStart').toBeTruthy()
+  .expect('fileComplete').toBeTruthy()
+  .expect('buildStart').toBeTruthy()
+  .expect('buildComplete').toBeTruthy();
+}))
+.then(() => new Promise((resolve, reject) => {
+  Taste.flavor('Scanning source paths')
+  .describe('Retrieves filepaths for all files within the sources')
+  .test(profile => {
+    const builder = new ProjectBuilder();
+    builder.on('search-complete', (queue) => {
+      profile.search = queue.length;
+      resolve();
+    })
+    builder.build(['_test/example/src']);
+  })
+  .expect('search').toEqual(3);
+}))
+.then(() => new Promise((resolve, reject) => {
+  Taste.flavor('Building a project')
+  .describe('Iterate through every source file')
+  .test(profile => {
+    const builder = new ProjectBuilder();
+    let counter = 0;
+    builder.use((file, next) => {
+      ++counter;
+    });
+    // Expect three files in the source location
+    builder.build(['_test/example/src'])
+    .then(() => {
+      profile.afterBuildFileCount = counter;
+      resolve();
+    });
+  })
+  .expect('afterBuildFileCount').toEqual(3);
+}))
+.then(() => new Promise((resolve, reject) => {
+  Taste.flavor('Iterates through every handler')
+  .test(profile => {
+    const builder = new ProjectBuilder();
+    let counter = 0;
+    builder.use((file, next) => {
+      ++counter;
+    });
+    builder.use((file, next) => {
+      ++counter;
+    });
+    builder.build(['_test/example/src/index.html'])
+    .then(() => {
+      profile.handlerCount = counter;
+      resolve();
+    });
+  })
+  .expect('handlerCount').toEqual(2);
+}))
+.then(() => new Promise((resolve, reject) => {
+  Taste.flavor('Builder throws when no source is provided')
+  .test(profile => {
+    const builder = new ProjectBuilder();
+    builder.build()
+    .then(() => {
+      profile.error = '';
+    })
+    .catch(err => {
+      profile.error = err;
+    })
+  })
+  .expect('error').toBeTruthy();
+}))
 
 module.exports = test;
-
-Taste.flavor('Path resolution')
-.describe('Builder resolves relative paths')
-.test(() => {
-  const builder = new ProjectBuilder('app/client', ['src', 'lib/script', 'lib']);
-  Taste.profile.path1 = builder.resolveToDest('src/script/foo.js');
-  Taste.profile.path2 = builder.resolveToDest('lib/script/foo.js');
-  Taste.profile.path3 = builder.resolveToDest('dev/src/script/foo.js');
-  Taste.profile.path4 = builder.resolveToDest('src\\script/foo.js');
-})
-.expect('path1').toEqual('app/client/script/foo.js')
-.expect('path2').toEqual('app/client/script/foo.js')
-.expect('path3').toEqual('app/client/script/foo.js')
-.expect('path4').toEqual('app/client/script/foo.js');
-
-Taste.flavor('Path details')
-.describe('Converts a path into structured info')
-.test(() => {
-  const builder = new ProjectBuilder('dist', 'src');
-  Taste.profile.info1 = builder.pathInfo('src/script/foo.bar.js').name;
-  Taste.profile.info2 = builder.pathInfo('src/.config').name;
-  Taste.profile.info3 = builder.pathInfo('src/script/foo.bar.js').type;
-  Taste.profile.info4 = builder.pathInfo('src/script/foo.bar.js').dest;
-})
-.expect('info1').toEqual('foo.bar')
-.expect('info2').toEqual('.config')
-.expect('info3').toEqual('js')
-.expect('info4').toEqual('dist/script/foo.bar.js');
-
-Taste.flavor('Cleaning the build location')
-.describe('Removes all existing files from the dest path')
-.test(() => {
-  const builder = new ProjectBuilder('test/example/dist');
-  builder.clearDest()
-  .then(() => {
-    Taste.profile.beforeBuildFileCount = fs.readdirSync('test/example/dist').length;
-  })
-  .catch(err => console.error(err));
-})
-.expect('beforeBuildFileCount').toEqual(0);
-
-Taste.flavor('Building a project')
-.describe('Builds all valid files from the src locations to dest')
-.test(() => {
-  const builder = new ProjectBuilder('test/example/dist', 'test/example/src');
-  builder.use((curr, next) => {
-    const dir = curr.dest.replace(`${curr.name}.${curr.type}`, '');
-    if ( !ProjectBuilder.pathExists(dir) ) fs.mkdirSync(dir);
-    fs.copyFileSync(curr.path, curr.dest);
-    return next();
-  });
-  builder.build()
-  .then(() => {
-    Taste.profile.afterBuildFileCount = fs.readdirSync('test/example/dist').length;
-  })
-  .catch(err => console.error(err));
-})
-.expect('afterBuildFileCount').toEqual(3)

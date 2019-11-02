@@ -1,7 +1,10 @@
 'use strict';
+const EventEmitter = require('events');
 const Path = require('path');
+const fs = require('fs-extra');
 const fsUtil = require('./fs-util.js');
 const pathUtil = require('./path-util.js');
+const Build = require('./Build.js');
 const BuildError = require('./BuildError.js');
 const execute = Symbol('execute');
 const searchSources = Symbol('searchSources');
@@ -21,7 +24,7 @@ class ProjectBuilder extends EventEmitter {
       writable: false,
       configurable: false
     });
-    Object.defineProperty(this, 'middleware', {
+    Object.defineProperty(this, 'handlers', {
       value: [],
       enumerable: true,
       writable: false,
@@ -37,35 +40,23 @@ class ProjectBuilder extends EventEmitter {
   
   /**
    * Create a new Build
-   * @param {String} buildRoot 
    * @param {String|Array[String]} sources
    * @returns {Promise:Build}
    */
-  build(buildRoot, sources) {
-    // Iterate through eaech file in the queue
+  build(sources) {
+    // Iterator function that retrieves every file to be built and passes it the execute function
     const fileIterator = (queue) => {
       return new Promise((resolve, reject) => {
+        if ( !queue.length ) {
+          return resolve();
+        }
         const filepath = queue.pop();
-        if ( filepath ) {
-          const currentFile = Path.normalize(filepath);
-          const fileInfo = Path.format(currentFile);
-          fileInfo.buildPath = pathUtil.resolveBuildPath(buildRoot, currentFile);
-
-          this[execute](fileInfo, this.middlewares)
-          .then(() => {
-            if ( queue.length ) {
-              // Proceed to next file in queue once the current file build is finished
-              return fileIterator(queue);
-            }
-            else {
-              return resolve(queue);
-            }
-          })
-          .catch(err => reject(err));
-        }
-        else {
-          return resolve(queue);
-        }
+        const currentFile = Path.normalize(filepath);
+        const fileInfo = Path.parse(currentFile);
+        this[execute](fileInfo)
+        .then(() => fileIterator(queue))
+        .then(() => resolve())
+        .catch(err => reject(err));
       });
     };
 
@@ -78,7 +69,6 @@ class ProjectBuilder extends EventEmitter {
       .then(queue => {
         build = new Build({
           root: this.root,
-          buildRoot: buildRoot,
           sources: sources,
           queue: queue
         });
@@ -102,78 +92,89 @@ class ProjectBuilder extends EventEmitter {
   }
 
   /**
-   * Pass a FileInfo object through the middleware
+   * Pass a FileInfo object through the handler
    * @param {Object} fileInfo
-   * @param {Array[Function]} middlewares
+   * @param {Array[Function]} handlers
    * @returns {Promise:Void}
    */
-  [execute](fileInfo, middlewares) {
-    const middlewareIterator = (file, queue) => {
-      return new Promise((resolve, reject) => {
-        const middleware = queue.shift();
-        if ( middleware ) {
-          const next = () => {
-            resolve(file, queue);
-          };
-          // If the middleware returns a promise, wait for the promise to resolve
-          try {
-            const returnValue = middleware(fileInfo, next);
-            if ( returnValue instanceof Promise ) {
-              returnValue
-              .then(() => resolve(file, queue))
-              .catch(err => reject(err));
-            }
-            else {
-              return resolve(file, queue);
-            }
-          }
-          catch(err) {
-            return reject(err);
-          }
+  [execute](fileInfo) {
+    let index = 0;
+    // Iterator function that passes the file object through each registered handler
+    const handlerIterator = (file) => {
+      return new Promise((iteratorResolve, iteratorReject) => {
+        if ( index >= this.handlers.length ) {
+          return iteratorResolve();
         }
-        else {
-          return resolve(file, queue);
+        const handler = this.handlers[index];
+        ++index;
+        // If the handler returns a promise, wait for the promise to resolve
+        try {
+          new Promise((handlerResolve, handlerReject) => {
+            const next = () => {
+              handlerResolve(file);
+            };
+            try {
+              const returnValue = handler(fileInfo, next);
+              if ( returnValue instanceof Promise ) {
+                returnValue
+                .then(() => handlerResolve(file))
+                .catch(err => handlerReject(err));
+              }
+              else {
+                return handlerResolve(file);
+              }
+            }
+            catch(err) {
+              handlerReject(err);
+            }
+          })
+          .then(() => handlerIterator(fileInfo))
+          .then(() => iteratorResolve(fileInfo))
+          .catch(err => iteratorReject(err))
+        }
+        catch(err) {
+          return iteratorReject(err);
         }
       });
     };
 
     return new Promise((resolve, reject) => {
       this.emit('file-start', fileInfo);
-      middlewareIterator(fileInfo, middlewares)
-      .then(queue => {
-        if ( queue.length ) {
-          // If there are still middleware in the process queue, continue iterating
-          return middlewareIterator(queue)
-        }
-        else {
-          // If the queue is empty, all middleware have been processed
-          this.emit('file-complete', fileInfo);
-          return resolve();
-        }
+      handlerIterator(fileInfo)
+      .then((fileInfo) => {
+        this.emit('file-complete', fileInfo);
+        return resolve();
       })
       .catch(err => reject(err));
     });
   }
 
-  use(listener) {
-    BuildError.InvalidListener.throwCheck(listener);
-    this.middleware.push(listener);
+  /**
+   * Add a build function to the builder.
+   * Build functions have two arguments: (fileInfo, next)
+   * - fileInfo is an object from path.parse()
+   * - next is a function that moves the build process to the next handler
+   * @param {Function} handler 
+   */
+  use(handler) {
+    BuildError.InvalidHandler.throwCheck(handler);
+    this.handlers.push(handler);
   }
 
   /**
    * Performs a deep search of the paths provided
    * and pushes any files found into the queue
    * Returns a Promise<String[]>
-   * @param {String[]} src 
+   * @param {String[]} sources 
    */
-  [searchSources](src = []) {
+  [searchSources](sources = []) {
     return new Promise((resolve, reject) => {
       try {
-        if ( src && !Array.isArray(src) ) {
-          src = [src];
+        if ( sources && !Array.isArray(sources) ) {
+          sources = [sources];
         }
 
-        const paths = [...this.sources];
+        const paths = [...sources];
         const queue = [];
         this.emit('search-start', paths);
 
@@ -199,7 +200,6 @@ class ProjectBuilder extends EventEmitter {
               status = 'file';
               // Push files into the build queue
               queue.push(currpath);
-              ++c;
             }
           }
           // Add the current path to the cache, along with its status
