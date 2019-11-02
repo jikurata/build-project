@@ -1,13 +1,13 @@
 {
   "name": "@jikurata/build-project",
-  "version": "0.0.6",
-  "description": "Build a project using your preferred tools as middleware",
+  "version": "0.0.7",
+  "description": "Search source paths for files to be built",
   "main": "index.js",
   "repository": "https://github.com/jikurata/build-project",
   "scripts": {
     "test:path-util": "node ./_test/path-util.test.js",
     "test:fs-util": "node ./_test/fs-util.test.js",
-    "test:builder": "node./_test/builder.test.js",
+    "test:builder": "node ./_test/builder.test.js",
     "test": "node ./_test/build-project.test.js"
   },
   "keywords": [

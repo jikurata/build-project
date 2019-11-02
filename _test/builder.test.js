@@ -70,7 +70,7 @@ const test = new Promise((resolve, reject) => {
     });
     // Expect three files in the source location
     builder.build(['_test/example/src'])
-    .then(() => {
+    .then(build => {
       profile.afterBuildFileCount = counter;
       resolve();
     });
