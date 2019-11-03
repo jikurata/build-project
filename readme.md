@@ -1,130 +1,101 @@
-# build-project v0.0.6
-Use your preferred build tools to build your project
+# build-project v0.0.7
+Search source paths for files and build them
 ---
 ## Install
+---
 ```
 npm install @jikurata/build-project
 ```
 ## Usage
-Add your build tools as middleware
+---
+Add build handlers to process each file in the queue
 ```
 const ProjectBuilder = require('@jikurata/build-project');
 const fs = require('fs');
+
+const builder = new ProjectBuilder();
+
+builder.use((file, next) => {
+    // Only process html files
+    if ( file.ext !== '.html' && file.ext !== '.htm' ) {
+        return next();
+    }
+    fs.copyFileSync(file.path, `/build/to/some/location/${file.name}${file.ext}`);
+    next();
+});
+```
+Asynchronous building is supported as well:
+```
 const browserify = require('browserify');
 
-const builder = new ProjectBuilder('dist', 'src');
-
-builder.use((curr, next) => {
-    if ( curr.type !== 'html' ) return next();
-    // Ensure build path exists
-    const dir = curr.dest.replace(`${curr.name}.${curr.type}`, '');
-    if ( !ProjectBuilder.pathExists(dir) ) fs.mkdirSync(dir);
-    fs.copyFileSync(curr.path, curr.dest);
-});
-
-// Adds browserify as middleware
-builder.use((curr, next) => {
-    if ( curr.type !== 'js' ) return next();
+builder.use((file, next) => {
+    // Only process js files
+    if ( file.ext !== '.js' ) {
+        return next();
+    }
     return new Promise((resolve, reject) => {
         let b = browserify(curr.path);
         b.bundle((err, buffer) => {
-            if ( err ) return console.error(err);
-            fs.writeFileSync(buffer, curr.dest);
-            resolve();
+            if ( err ) {
+                return reject(err);
+            }
+            fs.writeFile(buffer, `/build/to/some/location/${file.name}${file.ext}`, () => {
+                resolve();
+            });
         });
     });
 });
-
-// Executes the build process, returns a Promise
-builder.build();
 ```
-**Constructor**
-```
-    /**
-      * dest - The root directory for the build
-      * src - A single path, or an array of paths for ProjectBuilder to search before building
-      * @param {String} dest
-      * @param {String|String[]} src
-    new ProjectBuilder(dest, src);
-```
-**Deconstructing a middleware operation**
-```
-const middleware = (curr, next) => {
-    // Do things
-};
-```
-- **curr**: is an object containing basic information about the current file being processed.
-    - Properties:
-        - *path*: Contains the full root-relative path of the current file
-        - *dest*: Contains the build path
-        - *name*: Contains the file's base name
-        - *type*: Contains the file's extension
-        - *isFile*: *Boolean*, if the path property resolves to a file
-- **next**: is a callback function to command the executor to proceed to the next middleware operation in the chain. By default, if an operator reaches the end of its code block, it will proceed to the next operation. Furthermore, passing a falsy value as an argument to next() will terminate middleware execution for the current path object.
+## Documentation
+---
+### **class** ProjectBuilder ###
+#### Events ####
+- build-start: Emitted when an instance's "build()" method is called. Signals the start of the build process for the provided source paths.
+- build-complete: Emitted when the "build()" method's promise is resolved. Signals that the build process for the provided source paths is done.
+- search-start: Emitted when an instance begins a deep search through the provided source paths.
+- search-complete: Emitted when the deep search is complete. Passes an array containing all discovered filepaths.
+    - *queue* {Array:String} An array of filepath strings
+- file-start: Emitted when processing of an individual file begins. Passes a *FileInfo* object.
+    - *file* {FileInfo}
+- file-complete: Emitted when all relevant build handlers have processed the filepath. Passes a *FileInfo* object.
+    - *file* {FileInfo}
+#### Methods ####
+##### ProjectBuilder.build(sources) ######
+###### Arguments ######
+- sources {String|Array:String}: filepath sources for ProjectBuilder to search through.
+###### Returns ######
+- Returns a Promise that resolves with a Build object, or rejects with an Error.
+###### Description ######
+- ProjectBuilder will attempt to process every single discovered file in sources using its build handlers. When it starts, it emits a '*build-start*' event and when it resolves, it emits a '*build-complete*' event.
+##### ProjectBuilder.use(handler) ######
+###### Arguments ######
+- handler {Function}: A function that takes two arguments
+    - *file*: {FileInfo}
+    - *next*: {Callback} Instructs the build process to proceed to the next handler operation for the current file. **If next() is not explicitly called in the handler function, ProjectBuilder will not pass FileInfo to the subsequent handlers.**
 
-**Dealing with asynchronous middleware**
-It is recommended to return a Promise from your middleware to keep ProjectBuilder's execution synchronous, not doing so will disrupt the flow of console logging, not much else.
+### **Object** FileInfo ###
+#### Properties ####
+- base {String} Filename with extension
+- dir {String} directory containing the file
+- ext {String} extension, includes "."
+- name {String} Filename without extension
+- path {String} Full filepath of the file
+- root {String} Root path of the file
 
-## Example
-Project structure:
-- src/index.html
-- src/asset/scss/style.scss
-- src/asset/script/main.js
-```
-const ProjectBuilder = require('@jikurata/build-project');
-const fs = require('fs');
-
-// Build tools
-const browserify = require('browserify');
-const sass = require('node-sass');
-
-const builder = new ProjectBuilder('dist', 'src');
-
-// Define middleware operation for html files
-builder.use((curr, next) => {
-    if ( curr.type !== 'html' ) return next();
-
-    fs.copyFileSync(curr.path, curr.dest);
-});
-
-// Define middleware operation for js files
-builder.use((curr, next) => {
-    if ( curr.type !== 'js' ) return next();
-
-    // Correct build path destination
-    curr.dest.replace(curr.name, `${curr.name}.bundle`);
-
-    let b = browserify(curr.path);
-    b.bundle((err, buffer) => {
-        if ( err ) return console.error(err);
-        fs.writeFileSync(buffer, curr.dest);
-    });
-})
-
-// Define middleware operation for scss files
-builder.use((curr, next) => {
-    if ( curr.type !== 'scss' ) return next();
-    
-    // Correct the build path destination
-    curr.dest.replace('scss', 'css');
-
-    const content = sass.renderSync({
-        file: curr.path,
-        sourceMap: false,
-        outputStyle: 'compressed'
-    });
-    fs.writeFileSync(content.css, curr.dest);
-});
-
-builder.build();
-
-// Resulting build:
-- dist/index.html
-- dist/asset/css/style.css
-- dist/asset/script/main.bundle.js
-```
 ## Version Log
 ---
+**v0.0.7**
+- Overhauled entire project
+- ProjectBuilder.build() no longer resolves prematurely
+- Refactored the FileInfo object passed to each handler
+- The build process will now only proceed to the next handler if the previous handler calls "next()"
+- Removed all print calls. Any information that was printed before is now passed to its respective event instead
+- Removed build root and src paths as argument dependencies for creating new ProjectBuilder instances
+- Sources for a build are passed as an argument in the ProjectBuilder.build() method now
+- Removed build root and relevant functionality revolving around build root to increase flexibility
+    - Handlers themselves should explicitly name the build location when building a file
+- TODO: Expand on the current implementation of the Build object to contain more useful information about the build results.
+
 **v0.0.6**
 - filepaths are resolved at the validation phase
 

@@ -18,20 +18,8 @@ class ProjectBuilder extends EventEmitter {
       writable: false,
       configurable: false
     });
-    Object.defineProperty(this, 'sources', {
-      value: [],
-      enumerable: true,
-      writable: false,
-      configurable: false
-    });
     Object.defineProperty(this, 'handlers', {
       value: [],
-      enumerable: true,
-      writable: false,
-      configurable: false
-    });
-    Object.defineProperty(this, 'cache', {
-      value: {},
       enumerable: true,
       writable: false,
       configurable: false
@@ -53,6 +41,8 @@ class ProjectBuilder extends EventEmitter {
         const filepath = queue.pop();
         const currentFile = Path.normalize(filepath);
         const fileInfo = Path.parse(currentFile);
+        fileInfo.path = currentFile;
+
         this[execute](fileInfo)
         .then(() => fileIterator(queue))
         .then(() => resolve())
@@ -100,7 +90,7 @@ class ProjectBuilder extends EventEmitter {
   [execute](fileInfo) {
     let index = 0;
     // Iterator function that passes the file object through each registered handler
-    const handlerIterator = (file) => {
+    const handlerIterator = () => {
       return new Promise((iteratorResolve, iteratorReject) => {
         if ( index >= this.handlers.length ) {
           return iteratorResolve();
@@ -110,26 +100,34 @@ class ProjectBuilder extends EventEmitter {
         // If the handler returns a promise, wait for the promise to resolve
         try {
           new Promise((handlerResolve, handlerReject) => {
+            let nextHasBeenCalled = false;
+            // Instructs iterator to move to next handler
             const next = () => {
-              handlerResolve(file);
+              nextHasBeenCalled = true;
+              handlerResolve(nextHasBeenCalled);
             };
             try {
               const returnValue = handler(fileInfo, next);
               if ( returnValue instanceof Promise ) {
                 returnValue
-                .then(() => handlerResolve(file))
+                .then(() => handlerResolve(nextHasBeenCalled))
                 .catch(err => handlerReject(err));
               }
               else {
-                return handlerResolve(file);
+                return handlerResolve(nextHasBeenCalled);
               }
             }
             catch(err) {
               handlerReject(err);
             }
           })
-          .then(() => handlerIterator(fileInfo))
-          .then(() => iteratorResolve(fileInfo))
+          .then(nextHasBeenCalled => {
+            // Only proceed to the next handler if next() was called in the previous handler
+            if ( nextHasBeenCalled ) {
+              return handlerIterator();
+            }
+          })
+          .then(() => iteratorResolve())
           .catch(err => iteratorReject(err))
         }
         catch(err) {
@@ -181,29 +179,22 @@ class ProjectBuilder extends EventEmitter {
         // Iterate through each source path and inspect every single file
         while ( paths.length > 0 ) {
           const currpath = Path.normalize(paths.pop());
-          let status = 'invalid';
 
-          if ( !this.cache[currpath] ) {
-            // Check if the path exists
-            BuildError.PathDoesNotExist.throwCheck(currpath);
+          // Check if the path exists
+          BuildError.PathDoesNotExist.throwCheck(currpath);
 
-            if ( fsUtil.isDir(currpath) ) {
-              status = 'directory';
-              // Push all the subpaths of the directory into the search queue
-              const subpaths = fs.readdirSync(currpath);
-              for ( let i = 0; i < subpaths.length; ++i ) {
-                const abspath = Path.join(currpath, subpaths[i]);
-                paths.push(abspath);
-              }
-            }
-            else if ( fsUtil.isFile(currpath) && queue.indexOf(currpath) === -1 ) {
-              status = 'file';
-              // Push files into the build queue
-              queue.push(currpath);
+          if ( fsUtil.isDir(currpath) ) {
+            // Push all the subpaths of the directory into the search queue
+            const subpaths = fs.readdirSync(currpath);
+            for ( let i = 0; i < subpaths.length; ++i ) {
+              const abspath = Path.join(currpath, subpaths[i]);
+              paths.push(abspath);
             }
           }
-          // Add the current path to the cache, along with its status
-          this.cache[currpath] = status;
+          else if ( fsUtil.isFile(currpath) && queue.indexOf(currpath) === -1 ) {
+            // Push files into the build queue
+            queue.push(currpath);
+          }
         }
         this.emit('search-complete', queue);
         resolve(queue);

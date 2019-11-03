@@ -78,7 +78,7 @@ const test = new Promise((resolve, reject) => {
   .expect('afterBuildFileCount').toEqual(3);
 }))
 .then(() => new Promise((resolve, reject) => {
-  Taste.flavor('Iterates through every handler')
+  Taste.flavor('Iterator does not proceed if next() is not invoked')
   .test(profile => {
     const builder = new ProjectBuilder();
     let counter = 0;
@@ -87,6 +87,26 @@ const test = new Promise((resolve, reject) => {
     });
     builder.use((file, next) => {
       ++counter;
+    });
+    builder.build(['_test/example/src/index.html'])
+    .then(() => {
+      profile.handlerCount = counter;
+      resolve();
+    });
+  })
+  .expect('handlerCount').toEqual(1);
+  
+  Taste.flavor('Iterator proceeds to next handler only when next() is invoked')
+  .test(profile => {
+    const builder = new ProjectBuilder();
+    let counter = 0;
+    builder.use((file, next) => {
+      ++counter;
+      next();
+    });
+    builder.use((file, next) => {
+      ++counter;
+      next();
     });
     builder.build(['_test/example/src/index.html'])
     .then(() => {
